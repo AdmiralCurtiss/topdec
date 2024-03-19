@@ -71,12 +71,95 @@ size_t compress_83(const char* uncompressed, size_t uncompressedLength, char* co
         return count;
     };
 
+    struct Backref {
+        size_t Length;
+        size_t Position;
+    };
+
+    constexpr static size_t minBackrefLength = 3;
+    constexpr static size_t maxBackrefLength = 17;
+
+    // TODO: what happens if the offset is 0? does that count as 4096 does it do nonsense?
+    constexpr static size_t minBackrefOffset = 1;
+    constexpr static size_t maxBackrefOffset = 4095;
+
+    const auto write_backref = [&](size_t length, size_t offset) -> void {
+        write_command_bit(0);
+
+        assert(length >= minBackrefLength && length <= maxBackrefLength);
+        assert(offset >= minBackrefOffset && offset <= maxBackrefOffset);
+
+        compressed[compressedPosition] = static_cast<char>(offset & 0xff);
+        ++compressedPosition;
+        compressed[compressedPosition] =
+            static_cast<char>(((offset >> 8) & 0xf) | ((length - minBackrefLength) << 4));
+        ++compressedPosition;
+
+        uncompressedPosition += length;
+    };
+
+    const auto find_best_backref = [&]() -> Backref {
+        Backref bestBackref{0, 0};
+
+        if (uncompressedPosition < minBackrefOffset) {
+            return bestBackref; // no backref possible
+        }
+
+        const size_t firstPossibleBackrefPosition =
+            uncompressedPosition < maxBackrefOffset ? 0 : (uncompressedPosition - maxBackrefOffset);
+        const size_t lastPossibleBackrefPosition = uncompressedPosition - 1;
+        const size_t allowedBackrefLength =
+            (uncompressedLength - uncompressedPosition) >= maxBackrefLength
+                ? maxBackrefLength
+                : (uncompressedLength - uncompressedPosition);
+
+        if (allowedBackrefLength < minBackrefLength) {
+            return bestBackref; // no backref possible
+        }
+
+        size_t currentBackrefTest = lastPossibleBackrefPosition;
+        const auto count_backref_from_here = [&]() -> size_t {
+            size_t count = 0;
+            for (size_t i = 0; i < allowedBackrefLength; ++i) {
+                if (uncompressed[currentBackrefTest + i]
+                    == uncompressed[uncompressedPosition + i]) {
+                    ++count;
+                } else {
+                    break;
+                }
+            }
+            return count;
+        };
+        while (true) {
+            size_t length = count_backref_from_here();
+            if (length > bestBackref.Length) {
+                bestBackref.Length = length;
+                bestBackref.Position = currentBackrefTest;
+            }
+            if (length == maxBackrefLength) {
+                break;
+            }
+
+            if (currentBackrefTest == firstPossibleBackrefPosition) {
+                break;
+            }
+            --currentBackrefTest;
+        }
+
+        return bestBackref;
+    };
+
     while (uncompressedPosition < uncompressedLength) {
-        size_t sameByteCount = count_same_byte();
+        const size_t sameByteCount = count_same_byte();
         if (sameByteCount >= 4) {
             write_same_byte(sameByteCount > 274 ? 274 : sameByteCount);
         } else {
-            write_literal();
+            const auto bestBackref = find_best_backref();
+            if (bestBackref.Length < minBackrefLength) {
+                write_literal();
+            } else {
+                write_backref(bestBackref.Length, uncompressedPosition - bestBackref.Position);
+            }
         }
     }
 
