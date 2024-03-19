@@ -151,15 +151,21 @@ size_t compress_83(const char* uncompressed, size_t uncompressedLength, char* co
 
     while (uncompressedPosition < uncompressedLength) {
         const size_t sameByteCount = count_same_byte();
-        if (sameByteCount >= 4) {
-            write_same_byte(sameByteCount > 274 ? 274 : sameByteCount);
-        } else {
-            const auto bestBackref = find_best_backref();
-            if (bestBackref.Length < minBackrefLength) {
-                write_literal();
-            } else {
+        const auto bestBackref = find_best_backref();
+        const bool sameByteCountValid = sameByteCount >= 4;
+        const bool backrefValid = bestBackref.Length >= minBackrefLength;
+        if (sameByteCountValid && backrefValid) {
+            if (bestBackref.Length >= sameByteCount) {
                 write_backref(bestBackref.Length, uncompressedPosition - bestBackref.Position);
+            } else {
+                write_same_byte(sameByteCount > 274 ? 274 : sameByteCount);
             }
+        } else if (sameByteCountValid) {
+            write_same_byte(sameByteCount > 274 ? 274 : sameByteCount);
+        } else if (backrefValid) {
+            write_backref(bestBackref.Length, uncompressedPosition - bestBackref.Position);
+        } else {
+            write_literal();
         }
     }
 
