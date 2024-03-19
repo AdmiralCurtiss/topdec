@@ -9,29 +9,21 @@ bool decompress_83(const char* compressed,
     size_t in = 0;
     size_t out = 0;
 
-    bool carry = false;
-    uint8_t _6A = 0;
-
-    const auto ror = [&](uint8_t& val) {
-        uint8_t tmp = carry ? 0x80 : 0;
-        carry = !!(val & 1);
-        val = (val >> 1) | tmp;
-    };
-
+    int literalBits = 0;
     while (true) {
         if (out >= uncompressedLength) {
             return out == uncompressedLength;
         }
 
-        carry = false;
-        ror(_6A);
-        if (_6A == 0) {
-            _6A = compressed[in];
+        int isLiteralByte = (literalBits & 1);
+        literalBits = (literalBits >> 1);
+        if (literalBits == 0) {
+            literalBits = static_cast<uint8_t>(compressed[in]);
             ++in;
-            carry = true;
-            ror(_6A);
+            isLiteralByte = (literalBits & 1);
+            literalBits = (0x80 | (literalBits >> 1));
         }
-        if (carry) {
+        if (isLiteralByte) {
             uncompressed[out] = compressed[in];
             ++in;
             ++out;
