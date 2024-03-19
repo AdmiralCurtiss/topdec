@@ -7,7 +7,11 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 add_executable(topdec)
 target_sources(topdec PRIVATE
+	compress.cpp
+	compress.h
+	decompress.cpp
+	decompress.h
 	main.cpp
 	file.cpp
 	file.h
- "decompress.cpp" "decompress.h")
+)
