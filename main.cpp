@@ -15,7 +15,9 @@ static void PrintUsage() {
         "Output will be input file + '.dec' if not given.\n"
         "\n"
         "Usage for compression:\n"
-        "  topdec c (path to decompressed input) [path to compressed output]\n"
+        "  topdec c [options] (path to decompressed input) [path to compressed output]\n"
+        "  Options are:\n"
+        "    --type 81/83 (defaults to 83)\n"
         "Output will be input file + '.comp' if not given.\n");
 }
 
@@ -100,15 +102,40 @@ int main(int argc, char** argv) {
     }
 
     if (strcmp("c", argv[1]) == 0) {
-        std::string_view source(argv[2]);
+        int compressionType = 0x83;
+        int idx = 2;
+        while (idx < argc) {
+            if (strcmp("--type", argv[idx]) == 0) {
+                ++idx;
+                if (idx < argc) {
+                    if (strcmp("81", argv[idx]) == 0) {
+                        compressionType = 0x81;
+                    } else if (strcmp("83", argv[idx]) == 0) {
+                        compressionType = 0x83;
+                    } else {
+                        printf("Invalid compression type.\n");
+                        return -1;
+                    }
+                } else {
+                    PrintUsage();
+                    return -1;
+                }
+                ++idx;
+                continue;
+            }
+
+            break;
+        }
+
+        std::string_view source(argv[idx]);
         std::string_view target;
         std::string tmp;
-        if (argc < 4) {
+        if (argc - 2 < idx) {
             tmp = std::string(source);
             tmp += ".comp";
             target = tmp;
         } else {
-            target = std::string_view(argv[3]);
+            target = std::string_view(argv[idx + 1]);
         }
 
 
@@ -135,17 +162,26 @@ int main(int argc, char** argv) {
 
         size_t headerSize = 9;
         std::vector<char> compressed;
-        compressed.resize(compress_83_bound(uncompressed.size()) + headerSize);
+        compressed.resize(compress_81_83_bound(uncompressed.size()) + headerSize);
 
-        size_t compressedSize =
-            compress_83(uncompressed.data(), uncompressed.size(), compressed.data() + headerSize);
+        size_t compressedSize;
+        if (compressionType == 0x81) {
+            compressedSize = compress_81(
+                uncompressed.data(), uncompressed.size(), compressed.data() + headerSize);
+        } else if (compressionType == 0x83) {
+            compressedSize = compress_83(
+                uncompressed.data(), uncompressed.size(), compressed.data() + headerSize);
+        } else {
+            printf("invalid compression type\n");
+            return -1;
+        }
 
         if (compressedSize >= 0x10000) {
             printf("output too large\n");
             return -1;
         }
 
-        compressed[0] = static_cast<char>(0x83);
+        compressed[0] = static_cast<char>(static_cast<uint8_t>(compressionType));
         compressed[1] = static_cast<char>(compressedSize & 0xff);
         compressed[2] = static_cast<char>((compressedSize >> 8) & 0xff);
         compressed[3] = 0;

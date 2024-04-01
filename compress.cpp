@@ -3,11 +3,14 @@
 #include <cassert>
 #include <cstdint>
 
-size_t compress_83_bound(size_t uncompressedLength) {
+size_t compress_81_83_bound(size_t uncompressedLength) {
     return uncompressedLength + (uncompressedLength / 8) + 1;
 }
 
-size_t compress_83(const char* uncompressed, size_t uncompressedLength, char* compressed) {
+size_t compress_81_83(const char* uncompressed,
+                      size_t uncompressedLength,
+                      char* compressed,
+                      bool is83) {
     size_t compressedLength = 0;
     size_t compressedPosition = 0;
     size_t uncompressedPosition = 0;
@@ -77,7 +80,7 @@ size_t compress_83(const char* uncompressed, size_t uncompressedLength, char* co
     };
 
     constexpr static size_t minBackrefLength = 3;
-    constexpr static size_t maxBackrefLength = 17;
+    const size_t maxBackrefLength = is83 ? 17 : 18;
 
     // backref offset of 0 is encodable, but does nonsense (it just ends up copying from the
     // unwritten output buffer to itself), so avoid it
@@ -151,7 +154,7 @@ size_t compress_83(const char* uncompressed, size_t uncompressedLength, char* co
     };
 
     while (uncompressedPosition < uncompressedLength) {
-        const size_t sameByteCount = count_same_byte();
+        const size_t sameByteCount = is83 ? count_same_byte() : 0;
         const auto bestBackref = find_best_backref();
         const bool sameByteCountValid = sameByteCount >= 4;
         const bool backrefValid = bestBackref.Length >= minBackrefLength;
@@ -171,4 +174,12 @@ size_t compress_83(const char* uncompressed, size_t uncompressedLength, char* co
     }
 
     return compressedPosition;
+}
+
+size_t compress_81(const char* uncompressed, size_t uncompressedLength, char* compressed) {
+    return compress_81_83(uncompressed, uncompressedLength, compressed, false);
+}
+
+size_t compress_83(const char* uncompressed, size_t uncompressedLength, char* compressed) {
+    return compress_81_83(uncompressed, uncompressedLength, compressed, true);
 }
