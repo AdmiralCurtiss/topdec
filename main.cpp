@@ -69,13 +69,19 @@ int main(int argc, char** argv) {
         std::vector<char> uncompressed;
         uncompressed.resize(uncompressedLength);
 
-        if (compressionType != 0x83) {
+        bool decompressSuccess = false;
+        if (compressionType == 0x81) {
+            decompressSuccess = decompress_81(
+                compressed.data() + 9, compressedLength, uncompressed.data(), uncompressedLength);
+        } else if (compressionType == 0x83) {
+            decompressSuccess = decompress_83(
+                compressed.data() + 9, compressedLength, uncompressed.data(), uncompressedLength);
+        } else {
             printf("unsupported compression format\n");
             return -1;
         }
 
-        if (!decompress_83(
-                compressed.data() + 9, compressedLength, uncompressed.data(), uncompressedLength)) {
+        if (!decompressSuccess) {
             printf("decompression failure\n");
             return -1;
         }

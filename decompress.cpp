@@ -3,10 +3,11 @@
 #include <cstdint>
 #include <cstdio>
 
-bool decompress_83(const char* compressed,
-                   size_t compressedLength,
-                   char* uncompressed,
-                   size_t uncompressedLength) {
+bool decompress_81_83(const char* compressed,
+                      size_t compressedLength,
+                      char* uncompressed,
+                      size_t uncompressedLength,
+                      bool is83) {
     size_t in = 0;
     size_t out = 0;
 
@@ -33,7 +34,7 @@ bool decompress_83(const char* compressed,
         }
 
         uint8_t b = static_cast<uint8_t>(compressed[in + 1]);
-        if (b >= 0xf0) {
+        if (is83 && (b >= 0xf0)) {
             // multiple copies of the same byte
 
             b &= 0x0f;
@@ -78,4 +79,18 @@ bool decompress_83(const char* compressed,
             in += 2;
         }
     }
+}
+
+bool decompress_81(const char* compressed,
+                   size_t compressedLength,
+                   char* uncompressed,
+                   size_t uncompressedLength) {
+    return decompress_81_83(compressed, compressedLength, uncompressed, uncompressedLength, false);
+}
+
+bool decompress_83(const char* compressed,
+                   size_t compressedLength,
+                   char* uncompressed,
+                   size_t uncompressedLength) {
+    return decompress_81_83(compressed, compressedLength, uncompressed, uncompressedLength, true);
 }
