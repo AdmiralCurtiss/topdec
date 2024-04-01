@@ -1,6 +1,7 @@
 #include "decompress.h"
 
 #include <cstdint>
+#include <cstdio>
 
 bool decompress_83(const char* compressed,
                    size_t compressedLength,
@@ -24,6 +25,7 @@ bool decompress_83(const char* compressed,
             literalBits = (0x80 | (literalBits >> 1));
         }
         if (isLiteralByte) {
+            // printf("literal byte 0x%02x\n", (uint8_t)compressed[in]);
             uncompressed[out] = compressed[in];
             ++in;
             ++out;
@@ -38,6 +40,7 @@ bool decompress_83(const char* compressed,
             if (b == 0) {
                 // 19 to 274 bytes
                 size_t count = static_cast<size_t>(static_cast<uint8_t>(compressed[in])) + 19;
+                // printf("multi byte 0x%02x x%d\n", (uint8_t)compressed[in + 2], (int)count);
                 for (size_t i = 0; i < count; ++i) {
                     uncompressed[out] = compressed[in + 2];
                     ++out;
@@ -46,6 +49,7 @@ bool decompress_83(const char* compressed,
             } else {
                 // 4 to 18 bytes
                 size_t count = static_cast<size_t>(b) + 3;
+                // printf("multi byte 0x%02x x%d\n", (uint8_t)compressed[in], (int)count);
                 for (size_t i = 0; i < count; ++i) {
                     uncompressed[out] = compressed[in];
                     ++out;
@@ -57,7 +61,16 @@ bool decompress_83(const char* compressed,
 
             uint16_t offset = static_cast<uint16_t>(static_cast<uint8_t>(compressed[in]))
                               | (static_cast<uint16_t>(b & 0xf) << 8);
+            if (offset == 0) {
+                // the game just reads the unwritten output buffer and copies it over itself in this
+                // case... while I suppose one *could* use this behavior in a really creative way by
+                // pre-initializing the output buffer to something known, I doubt it actually does
+                // that. so consider this a corrupted data stream.
+                return false;
+            }
+
             size_t count = (static_cast<uint16_t>(b & 0xf0) >> 4) + 3;
+            // printf("backref @%d for %d\n", (int)(out - offset), (int)count);
             for (size_t i = 0; i < count; ++i) {
                 uncompressed[out] = uncompressed[out - offset];
                 ++out;

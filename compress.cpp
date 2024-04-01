@@ -79,7 +79,8 @@ size_t compress_83(const char* uncompressed, size_t uncompressedLength, char* co
     constexpr static size_t minBackrefLength = 3;
     constexpr static size_t maxBackrefLength = 17;
 
-    // TODO: what happens if the offset is 0? does that count as 4096 does it do nonsense?
+    // backref offset of 0 is encodable, but does nonsense (it just ends up copying from the
+    // unwritten output buffer to itself), so avoid it
     constexpr static size_t minBackrefOffset = 1;
     constexpr static size_t maxBackrefOffset = 4095;
 
