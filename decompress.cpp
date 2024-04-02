@@ -3,18 +3,22 @@
 #include <cstdint>
 #include <cstdio>
 
-bool decompress_81_83(const char* compressed,
-                      size_t compressedLength,
-                      char* uncompressed,
-                      size_t uncompressedLength,
-                      bool is83) {
+size_t decompress_reserve_extra_bytes() {
+    return 273;
+}
+
+int64_t decompress_81_83(const char* compressed,
+                         size_t compressedLength,
+                         char* uncompressed,
+                         size_t uncompressedLength,
+                         bool is83) {
     size_t in = 0;
     size_t out = 0;
 
     int literalBits = 0;
     while (true) {
         if (out >= uncompressedLength) {
-            return out == uncompressedLength;
+            return out;
         }
 
         int isLiteralByte = (literalBits & 1);
@@ -67,7 +71,7 @@ bool decompress_81_83(const char* compressed,
                 // case... while I suppose one *could* use this behavior in a really creative way by
                 // pre-initializing the output buffer to something known, I doubt it actually does
                 // that. so consider this a corrupted data stream.
-                return false;
+                return -1;
             }
 
             size_t count = (static_cast<uint16_t>(b & 0xf0) >> 4) + 3;
@@ -81,16 +85,16 @@ bool decompress_81_83(const char* compressed,
     }
 }
 
-bool decompress_81(const char* compressed,
-                   size_t compressedLength,
-                   char* uncompressed,
-                   size_t uncompressedLength) {
+int64_t decompress_81(const char* compressed,
+                      size_t compressedLength,
+                      char* uncompressed,
+                      size_t uncompressedLength) {
     return decompress_81_83(compressed, compressedLength, uncompressed, uncompressedLength, false);
 }
 
-bool decompress_83(const char* compressed,
-                   size_t compressedLength,
-                   char* uncompressed,
-                   size_t uncompressedLength) {
+int64_t decompress_83(const char* compressed,
+                      size_t compressedLength,
+                      char* uncompressed,
+                      size_t uncompressedLength) {
     return decompress_81_83(compressed, compressedLength, uncompressed, uncompressedLength, true);
 }

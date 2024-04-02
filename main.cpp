@@ -69,23 +69,29 @@ int main(int argc, char** argv) {
             static_cast<uint8_t>(compressed[5]) | (static_cast<uint8_t>(compressed[6]) << 8);
 
         std::vector<char> uncompressed;
-        uncompressed.resize(uncompressedLength);
+        uncompressed.resize(uncompressedLength + decompress_reserve_extra_bytes());
 
-        bool decompressSuccess = false;
+        int64_t decompressResult = -2;
         if (compressionType == 0x81) {
-            decompressSuccess = decompress_81(
+            decompressResult = decompress_81(
                 compressed.data() + 9, compressedLength, uncompressed.data(), uncompressedLength);
         } else if (compressionType == 0x83) {
-            decompressSuccess = decompress_83(
+            decompressResult = decompress_83(
                 compressed.data() + 9, compressedLength, uncompressed.data(), uncompressedLength);
         } else {
             printf("unsupported compression format\n");
             return -1;
         }
 
-        if (!decompressSuccess) {
+        if (decompressResult < 0) {
             printf("decompression failure\n");
             return -1;
+        }
+
+        if (static_cast<size_t>(decompressResult) != uncompressedLength) {
+            printf("WARNING: Header specified 0x%zx bytes but decompression produced 0x%zx bytes\n",
+                   static_cast<size_t>(uncompressedLength),
+                   static_cast<size_t>(decompressResult));
         }
 
         SenPatcher::IO::File outfile(target, SenPatcher::IO::OpenMode::Write);
@@ -93,7 +99,8 @@ int main(int argc, char** argv) {
             printf("failed to open output file\n");
             return -1;
         }
-        if (outfile.Write(uncompressed.data(), uncompressed.size()) != uncompressed.size()) {
+        if (outfile.Write(uncompressed.data(), static_cast<size_t>(decompressResult))
+            != static_cast<size_t>(decompressResult)) {
             printf("failed to write output file\n");
             return -1;
         }
