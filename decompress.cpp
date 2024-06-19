@@ -7,11 +7,11 @@ size_t decompress_reserve_extra_bytes() {
     return 273;
 }
 
-int64_t decompress_81_83(const char* compressed,
-                         size_t compressedLength,
-                         char* uncompressed,
-                         size_t uncompressedLength,
-                         bool is83) {
+template<bool HasMultiByte, bool DoLogging>
+static int64_t decompress_81_83(const char* compressed,
+                                size_t compressedLength,
+                                char* uncompressed,
+                                size_t uncompressedLength) {
     size_t in = 0;
     size_t out = 0;
 
@@ -33,8 +33,11 @@ int64_t decompress_81_83(const char* compressed,
             literalBits = (0x80 | (literalBits >> 1));
         }
         if (isLiteralByte) {
-            // printf("literal byte 0x%02x\n", (uint8_t)compressed[in]);
-            uncompressed[out] = compressed[in];
+            const char c = compressed[in];
+            if constexpr (DoLogging) {
+                printf("literal byte 0x%02x\n", static_cast<uint8_t>(c));
+            }
+            uncompressed[out] = c;
             ++in;
             ++out;
             continue;
@@ -45,7 +48,7 @@ int64_t decompress_81_83(const char* compressed,
         }
 
         uint8_t b = static_cast<uint8_t>(compressed[in + 1]);
-        if (is83 && (b >= 0xf0)) {
+        if (HasMultiByte && (b >= 0xf0)) {
             // multiple copies of the same byte
 
             b &= 0x0f;
@@ -55,19 +58,29 @@ int64_t decompress_81_83(const char* compressed,
                 }
 
                 // 19 to 274 bytes
-                size_t count = static_cast<size_t>(static_cast<uint8_t>(compressed[in])) + 19;
-                // printf("multi byte 0x%02x x%d\n", (uint8_t)compressed[in + 2], (int)count);
+                const size_t count = static_cast<size_t>(static_cast<uint8_t>(compressed[in])) + 19;
+                const char c = compressed[in + 2];
+                if constexpr (DoLogging) {
+                    printf("multi byte 0x%02x x%d\n",
+                           static_cast<uint8_t>(c),
+                           static_cast<int>(count));
+                }
                 for (size_t i = 0; i < count; ++i) {
-                    uncompressed[out] = compressed[in + 2];
+                    uncompressed[out] = c;
                     ++out;
                 }
                 in += 3;
             } else {
                 // 4 to 18 bytes
-                size_t count = static_cast<size_t>(b) + 3;
-                // printf("multi byte 0x%02x x%d\n", (uint8_t)compressed[in], (int)count);
+                const size_t count = static_cast<size_t>(b) + 3;
+                const char c = compressed[in];
+                if constexpr (DoLogging) {
+                    printf("multi byte 0x%02x x%d\n",
+                           static_cast<uint8_t>(c),
+                           static_cast<int>(count));
+                }
                 for (size_t i = 0; i < count; ++i) {
-                    uncompressed[out] = compressed[in];
+                    uncompressed[out] = c;
                     ++out;
                 }
                 in += 2;
@@ -75,8 +88,8 @@ int64_t decompress_81_83(const char* compressed,
         } else {
             // backref into decompressed data
 
-            uint16_t offset = static_cast<uint16_t>(static_cast<uint8_t>(compressed[in]))
-                              | (static_cast<uint16_t>(b & 0xf) << 8);
+            const uint16_t offset = static_cast<uint16_t>(static_cast<uint8_t>(compressed[in]))
+                                    | (static_cast<uint16_t>(b & 0xf) << 8);
             if (offset == 0) {
                 // the game just reads the unwritten output buffer and copies it over itself in this
                 // case... while I suppose one *could* use this behavior in a really creative way by
@@ -89,8 +102,12 @@ int64_t decompress_81_83(const char* compressed,
                 return -1;
             }
 
-            size_t count = (static_cast<uint16_t>(b & 0xf0) >> 4) + 3;
-            // printf("backref @%d for %d\n", (int)(out - offset), (int)count);
+            const size_t count = (static_cast<uint16_t>(b & 0xf0) >> 4) + 3;
+            if constexpr (DoLogging) {
+                printf("backref @%d for %d\n",
+                       static_cast<int>(out - offset),
+                       static_cast<int>(count));
+            }
             for (size_t i = 0; i < count; ++i) {
                 uncompressed[out] = uncompressed[out - offset];
                 ++out;
@@ -100,16 +117,20 @@ int64_t decompress_81_83(const char* compressed,
     }
 }
 
+static constexpr bool EnableLogging = false;
+
 int64_t decompress_81(const char* compressed,
                       size_t compressedLength,
                       char* uncompressed,
                       size_t uncompressedLength) {
-    return decompress_81_83(compressed, compressedLength, uncompressed, uncompressedLength, false);
+    return decompress_81_83<false, EnableLogging>(
+        compressed, compressedLength, uncompressed, uncompressedLength);
 }
 
 int64_t decompress_83(const char* compressed,
                       size_t compressedLength,
                       char* uncompressed,
                       size_t uncompressedLength) {
-    return decompress_81_83(compressed, compressedLength, uncompressed, uncompressedLength, true);
+    return decompress_81_83<true, EnableLogging>(
+        compressed, compressedLength, uncompressed, uncompressedLength);
 }
