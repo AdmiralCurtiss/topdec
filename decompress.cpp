@@ -47,12 +47,15 @@ static int64_t decompress_81_83(const char* compressed,
             return -1;
         }
 
-        uint8_t b = static_cast<uint8_t>(compressed[in + 1]);
-        if (HasMultiByte && (b >= 0xf0)) {
+        const uint8_t b = static_cast<uint8_t>(compressed[in + 1]);
+        const uint8_t blow = static_cast<uint8_t>(b & 0xf);
+        const uint8_t bhigh = static_cast<uint8_t>((b & 0xf0) >> 4);
+        const uint8_t nibble1 = bhigh;
+        const uint8_t nibble2 = blow;
+        if (HasMultiByte && (nibble1 == 0xf)) {
             // multiple copies of the same byte
 
-            b &= 0x0f;
-            if (b == 0) {
+            if (nibble2 == 0) {
                 if ((in + 2) >= compressedLength) {
                     return -1;
                 }
@@ -72,7 +75,7 @@ static int64_t decompress_81_83(const char* compressed,
                 in += 3;
             } else {
                 // 4 to 18 bytes
-                const size_t count = static_cast<size_t>(b) + 3;
+                const size_t count = static_cast<size_t>(nibble2) + 3;
                 const char c = compressed[in];
                 if constexpr (DoLogging) {
                     printf("multi byte 0x%02x x%d\n",
@@ -89,7 +92,7 @@ static int64_t decompress_81_83(const char* compressed,
             // backref into decompressed data
 
             const uint16_t offset = static_cast<uint16_t>(static_cast<uint8_t>(compressed[in]))
-                                    | (static_cast<uint16_t>(b & 0xf) << 8);
+                                    | (static_cast<uint16_t>(nibble2) << 8);
             if (offset == 0) {
                 // the game just reads the unwritten output buffer and copies it over itself in this
                 // case... while I suppose one *could* use this behavior in a really creative way by
@@ -102,7 +105,7 @@ static int64_t decompress_81_83(const char* compressed,
                 return -1;
             }
 
-            const size_t count = (static_cast<uint16_t>(b & 0xf0) >> 4) + 3;
+            const size_t count = static_cast<uint16_t>(nibble1) + 3;
             if constexpr (DoLogging) {
                 printf("backref @%d for %d\n",
                        static_cast<int>(out - offset),
