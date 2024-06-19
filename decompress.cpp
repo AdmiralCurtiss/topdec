@@ -20,6 +20,9 @@ int64_t decompress_81_83(const char* compressed,
         if (out >= uncompressedLength) {
             return out;
         }
+        if (in >= compressedLength) {
+            return -1;
+        }
 
         int isLiteralByte = (literalBits & 1);
         literalBits = (literalBits >> 1);
@@ -37,12 +40,20 @@ int64_t decompress_81_83(const char* compressed,
             continue;
         }
 
+        if ((in + 1) >= compressedLength) {
+            return -1;
+        }
+
         uint8_t b = static_cast<uint8_t>(compressed[in + 1]);
         if (is83 && (b >= 0xf0)) {
             // multiple copies of the same byte
 
             b &= 0x0f;
             if (b == 0) {
+                if ((in + 2) >= compressedLength) {
+                    return -1;
+                }
+
                 // 19 to 274 bytes
                 size_t count = static_cast<size_t>(static_cast<uint8_t>(compressed[in])) + 19;
                 // printf("multi byte 0x%02x x%d\n", (uint8_t)compressed[in + 2], (int)count);
@@ -71,6 +82,10 @@ int64_t decompress_81_83(const char* compressed,
                 // case... while I suppose one *could* use this behavior in a really creative way by
                 // pre-initializing the output buffer to something known, I doubt it actually does
                 // that. so consider this a corrupted data stream.
+                return -1;
+            }
+            if (out < offset) {
+                // backref to before start of uncompressed data. this is invalid.
                 return -1;
             }
 
