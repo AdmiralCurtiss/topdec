@@ -14,4 +14,9 @@ target_sources(topdec PRIVATE
 	main.cpp
 	file.cpp
 	file.h
+	text.cpp
+	text.h
+)
+target_compile_definitions(topdec
+	PUBLIC FILE_WRAPPER_WITH_STD_FILESYSTEM
 )

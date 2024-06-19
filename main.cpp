@@ -1,5 +1,6 @@
 #include <cstdint>
 #include <cstring>
+#include <filesystem>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -40,7 +41,8 @@ int main(int argc, char** argv) {
         }
 
 
-        SenPatcher::IO::File infile(source, SenPatcher::IO::OpenMode::Read);
+        HyoutaUtils::IO::File infile(std::filesystem::path(source),
+                                     HyoutaUtils::IO::OpenMode::Read);
         if (!infile.IsOpen()) {
             printf("failed to open input file\n");
             return -1;
@@ -94,7 +96,8 @@ int main(int argc, char** argv) {
                    static_cast<size_t>(decompressResult));
         }
 
-        SenPatcher::IO::File outfile(target, SenPatcher::IO::OpenMode::Write);
+        HyoutaUtils::IO::File outfile(std::filesystem::path(target),
+                                      HyoutaUtils::IO::OpenMode::Write);
         if (!outfile.IsOpen()) {
             printf("failed to open output file\n");
             return -1;
@@ -146,7 +149,8 @@ int main(int argc, char** argv) {
         }
 
 
-        SenPatcher::IO::File infile(source, SenPatcher::IO::OpenMode::Read);
+        HyoutaUtils::IO::File infile(std::filesystem::path(source),
+                                     HyoutaUtils::IO::OpenMode::Read);
         if (!infile.IsOpen()) {
             printf("failed to open input file\n");
             return -1;
@@ -198,7 +202,8 @@ int main(int argc, char** argv) {
         compressed[7] = 0;
         compressed[8] = 0;
 
-        SenPatcher::IO::File outfile(target, SenPatcher::IO::OpenMode::Write);
+        HyoutaUtils::IO::File outfile(std::filesystem::path(target),
+                                      HyoutaUtils::IO::OpenMode::Write);
         if (!outfile.IsOpen()) {
             printf("failed to open output file\n");
             return -1;
