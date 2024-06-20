@@ -74,7 +74,10 @@ int main(int argc, char** argv) {
         uncompressed.resize(uncompressedLength + decompress_reserve_extra_bytes());
 
         int64_t decompressResult = -2;
-        if (compressionType == 0x01) {
+        if (compressionType == 0x00 && compressedLength == uncompressedLength) {
+            std::memcpy(uncompressed.data(), compressed.data() + 9, compressedLength);
+            decompressResult = compressedLength;
+        } else if (compressionType == 0x01) {
             decompressResult = decompress_01(
                 compressed.data() + 9, compressedLength, uncompressed.data(), uncompressedLength);
         } else if (compressionType == 0x03) {
