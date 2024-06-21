@@ -64,11 +64,17 @@ int main(int argc, char** argv) {
             return -1;
         }
 
-        uint8_t compressionType = compressed[0];
-        uint16_t compressedLength =
-            static_cast<uint8_t>(compressed[1]) | (static_cast<uint8_t>(compressed[2]) << 8);
-        uint16_t uncompressedLength =
-            static_cast<uint8_t>(compressed[5]) | (static_cast<uint8_t>(compressed[6]) << 8);
+        uint8_t compressionType = static_cast<uint8_t>(compressed[0]);
+        uint32_t compressedLength =
+            static_cast<uint32_t>(static_cast<uint8_t>(compressed[1]))
+            | (static_cast<uint32_t>(static_cast<uint8_t>(compressed[2])) << 8)
+            | (static_cast<uint32_t>(static_cast<uint8_t>(compressed[3])) << 16)
+            | (static_cast<uint32_t>(static_cast<uint8_t>(compressed[4])) << 24);
+        uint32_t uncompressedLength =
+            static_cast<uint32_t>(static_cast<uint8_t>(compressed[5]))
+            | (static_cast<uint32_t>(static_cast<uint8_t>(compressed[6])) << 8)
+            | (static_cast<uint32_t>(static_cast<uint8_t>(compressed[7])) << 16)
+            | (static_cast<uint32_t>(static_cast<uint8_t>(compressed[8])) << 24);
 
         std::vector<char> uncompressed;
         uncompressed.resize(uncompressedLength + decompress_reserve_extra_bytes());
